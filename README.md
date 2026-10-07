@@ -1,35 +1,35 @@
 # Edabip Prathibha API
 
-REST API for subscription plans and subscriptions, built with Java, Spring Boot, PostgreSQL, and JDBC. Persistence uses `JdbcTemplate`; the project does not use JPA or Hibernate.
+REST API for subscription plans and subscriptions, built with Java, Spring Boot, MySQL, and JDBC. Persistence uses `JdbcTemplate`; the project does not use JPA or Hibernate.
 
 ## Requirements
 
 - Java 17 or newer
 - Maven 3.6.3 or newer
-- PostgreSQL
+- MySQL 8.0.16 or newer (for enforced `CHECK` constraints)
 
 ## Setup
 
-1. Create a PostgreSQL database:
+1. Create the database in MySQL:
 
    ```sql
-   CREATE DATABASE edabip_prathibha;
+   CREATE DATABASE edabip_prathibha CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
    ```
 
-2. Apply the schema and sample plan data from the repository root:
+2. Apply the schema and sample plan rows from the repository root:
 
    ```sh
-   psql -U postgres -d edabip_prathibha -f schema.sql
-   psql -U postgres -d edabip_prathibha -f seed.sql
+   mysql -u root -p edabip_prathibha < schema.sql
+   mysql -u root -p edabip_prathibha < seed.sql
    ```
 
    `seed.sql` contains example prices and limits. Replace them with product-approved values before using the API in production.
 
-3. Configure the database. Defaults are `localhost:5432`, database `edabip_prathibha`, user `postgres`, password `postgres`. Override them with environment variables:
+3. Configure the database. Defaults are `localhost:3306`, database `edabip_prathibha`, user `root`, password `root`. Override them with environment variables:
 
-   ```sh
-   DB_URL=jdbc:postgresql://localhost:5432/edabip_prathibha
-   DB_USERNAME=postgres
+   ```text
+   DB_URL=jdbc:mysql://localhost:3306/edabip_prathibha?serverTimezone=UTC
+   DB_USERNAME=root
    DB_PASSWORD=your-password
    PORT=8080
    ```
@@ -56,7 +56,7 @@ REST API for subscription plans and subscriptions, built with Java, Spring Boot,
 ## Architecture
 
 ```text
-Controller  ->  Service  ->  Repository (JdbcTemplate)  ->  PostgreSQL
+Controller  ->  Service  ->  Repository (JdbcTemplate)  ->  MySQL
 ```
 
 - `controller` endpoints parse requests and produce response envelopes.
@@ -112,10 +112,10 @@ erDiagram
     PLANS {
         bigint id PK
         varchar name UK
-        numeric price
-        integer user_limit
-        integer storage_limit_gb
-        integer reports_per_month
+        decimal price
+        int user_limit
+        int storage_limit_gb
+        int reports_per_month
         varchar support
     }
     SUBSCRIPTIONS {
@@ -125,7 +125,7 @@ erDiagram
         varchar billing_cycle
         date current_period_start
         date current_period_end
-        numeric amount_due
-        timestamptz last_payment_at
+        decimal amount_due
+        timestamp last_payment_at
     }
 ```
