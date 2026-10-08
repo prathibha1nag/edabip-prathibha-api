@@ -5,6 +5,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.edabip.billing.exceptionHandler.ApiResponse;
+import com.edabip.billing.model.ChangePlanRequest;
 import com.edabip.billing.model.CreateSubscriptionRequest;
 import com.edabip.billing.model.Subscription;
 import com.edabip.billing.service.SubscriptionService;
@@ -48,5 +50,12 @@ public class SubscriptionController {
     @Operation(summary = "Get a subscription by ID")
     public ApiResponse<Subscription> findById(@PathVariable @Positive long id) {
         return ApiResponse.ok(service.findById(id));
+    }
+
+    @PutMapping("/{id}/plan")
+    @Operation(summary = "Change the plan for a subscription")
+    public ApiResponse<Subscription> changePlan(@PathVariable @Positive long id,
+                                                 @Valid @RequestBody ChangePlanRequest request) {
+        return ApiResponse.ok(service.changePlan(id, request));
     }
 }

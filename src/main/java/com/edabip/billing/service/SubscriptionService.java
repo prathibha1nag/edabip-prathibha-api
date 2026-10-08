@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 
 import com.edabip.billing.exceptionHandler.NotFoundException;
 import com.edabip.billing.model.CreateSubscriptionRequest;
+import com.edabip.billing.model.ChangePlanRequest;
 import com.edabip.billing.model.Plan;
 import com.edabip.billing.model.Subscription;
 import com.edabip.billing.repository.PlanRepository;
@@ -25,7 +26,22 @@ public class SubscriptionService {
         }
         Plan plan = plans.findById(request.planId())
                 .orElseThrow(() -> new NotFoundException("Plan " + request.planId() + " was not found"));
+        requireActive(plan);
         return subscriptions.create(request, plan.price());
+    }
+
+    public Subscription changePlan(long subscriptionId, ChangePlanRequest request) {
+        subscriptions.findById(subscriptionId)
+                .orElseThrow(() -> new NotFoundException("Subscription " + subscriptionId + " was not found"));
+        Plan plan = plans.findById(request.planId())
+                .orElseThrow(() -> new NotFoundException("Plan " + request.planId() + " was not found"));
+        requireActive(plan);
+        subscriptions.changePlan(subscriptionId, plan.id(), plan.price());
+        return findById(subscriptionId);
+    }
+
+    private void requireActive(Plan plan) {
+        if (!plan.active()) throw new IllegalArgumentException("Plan " + plan.id() + " is inactive");
     }
 
     public Subscription findById(long id) {

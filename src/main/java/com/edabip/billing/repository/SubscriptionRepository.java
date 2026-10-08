@@ -61,6 +61,11 @@ public class SubscriptionRepository {
         return jdbc.query(SELECT + " WHERE s.id = ?", mapper, id).stream().findFirst();
     }
 
+    public void changePlan(long subscriptionId, long planId, java.math.BigDecimal amountDue) {
+        jdbc.update("UPDATE subscriptions SET plan_id = ?, amount_due = ? WHERE id = ?",
+                planId, amountDue, subscriptionId);
+    }
+
     public Optional<Subscription> findCurrentByCustomerId(String customerId) {
         return jdbc.query(SELECT + " WHERE s.customer_id = ? AND s.current_period_start <= CURRENT_DATE " +
                         "AND s.current_period_end > CURRENT_DATE ORDER BY s.current_period_start DESC, s.id DESC LIMIT 1",

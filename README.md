@@ -1,54 +1,56 @@
-# Edabip Prathibha API
+# Edabip Prathibha Billing API
 
-Day 1 establishes the database foundation for a subscription plans API: a MySQL schema for plans and subscriptions, sample plan data, and a Spring Boot REST API backed by JDBC.
+A Spring Boot REST API for subscription plans and customer subscriptions. It uses Spring JDBC (`JdbcTemplate`) with MySQL; it does not use JPA or Hibernate.
 
-## What’s included
+## Project layout
 
-- Plan listing and lookup
-- Subscription creation and lookup
-- A database health endpoint
-- Request validation and a consistent JSON response envelope
-- Swagger UI, an OpenAPI document, and a Postman collection
+```text
+src/main/java/com/edabip/billing/
+|-- EdabipApplication.java
+|-- controller/   HTTP endpoints
+|-- service/      application logic
+|-- repository/   JDBC queries and row mapping
+|-- model/        request and response models
+`-- exceptionHandler/ shared response format and exception handling
 
-The application uses Spring JDBC (`JdbcTemplate`) and MySQL. It does not use JPA or Hibernate.
+src/main/resources/
+|-- application.properties
+|-- schema.sql
+`-- data.sql
+```
 
 ## Requirements
 
 - Java 17 or newer
 - Maven 3.6.3 or newer
-- MySQL 8.0.16 or newer (for enforced `CHECK` constraints)
+- MySQL 8.0.16 or newer
 
 ## Database setup
 
-Create the database:
+Create the database in MySQL:
 
 ```sql
 CREATE DATABASE edabip_prathibha CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 ```
 
-From the repository root, apply the schema first and then the sample data:
+From the repository root, apply the schema and then insert the sample plans:
 
 ```sh
-mysql -u root -p edabip_prathibha < schema.sql
-mysql -u root -p edabip_prathibha < seed.sql
+mysql -u root -p edabip_prathibha < src/main/resources/schema.sql
+mysql -u root -p edabip_prathibha < src/main/resources/data.sql
 ```
 
-`schema.sql` creates:
-
-- `plans`: plan name, price, user and storage limits, monthly report limit, and support level.
-- `subscriptions`: customer, selected plan, billing cycle, billing period, amount due, and last payment timestamp.
-
-The schema enforces nonnegative prices and amounts, positive plan limits, valid billing cycles (`monthly` or `annual`), and an end date after the period start. A foreign key links each subscription to a plan. The seed script inserts Basic, Standard, and Enterprise examples; replace these sample prices and limits with approved product values before production use.
+The schema creates `plans` and `subscriptions`. It defines a foreign key from subscriptions to plans and checks plan limits, nonnegative amounts, billing cycles, and subscription period dates. The sample plans are Basic, Standard, and Enterprise. Replace their example prices and limits with product-approved values before production use.
 
 ## Configuration
 
-The defaults are database `edabip_prathibha` on `localhost:3306`, username `root`, password `root`, and API port `8080`. Override them with environment variables:
+`src/main/resources/application.properties` reads these environment variables:
 
-| Variable | Default | Purpose |
+| Variable | Default | Description |
 | --- | --- | --- |
-| `DB_URL` | `jdbc:mysql://localhost:3306/edabip_prathibha?serverTimezone=UTC` | JDBC connection URL |
+| `DB_URL` | `jdbc:mysql://localhost:3306/edabip_prathibha?serverTimezone=UTC` | MySQL JDBC URL |
 | `DB_USERNAME` | `root` | MySQL username |
-| `DB_PASSWORD` | `root` | MySQL password |
+| `DB_PASSWORD` | `123456` | MySQL password |
 | `PORT` | `8080` | HTTP port |
 
 PowerShell example:
@@ -57,33 +59,52 @@ PowerShell example:
 $env:DB_PASSWORD = 'your-password'
 ```
 
-## Run the API
+SQL initialization is disabled at application startup. Apply `schema.sql` and `data.sql` manually as shown above; this avoids rerunning `CREATE TABLE` every time the API starts.
+
+## Run
 
 ```sh
 mvn spring-boot:run
 ```
 
-To package and run the application:
+Or build and run the executable jar:
 
 ```sh
 mvn clean package
 java -jar target/prathibha-api-0.1.0.jar
 ```
 
-## Endpoints
+## API endpoints
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/health` | Checks API and database connectivity |
-| `GET` | `/api/v1/plans` | Lists plans ordered by price |
-| `GET` | `/api/v1/plans/{id}` | Gets a plan by ID |
-| `POST` | `/api/v1/subscriptions` | Creates a subscription |
-| `GET` | `/api/v1/subscriptions/{id}` | Gets a subscription by ID |
+| `GET` | `/api/plans` | Lists plans ordered by price |
+| `GET` | `/api/plans/{id}` | Gets a plan by ID |
+| `PUT` | `/api/plans/{id}/activate` | Activates a plan |
+| `PUT` | `/api/plans/{id}/deactivate` | Deactivates a plan |
+| `GET` | `/api/subscription?customerId={customerId}` | Gets the customer's current subscription |
+| `POST` | `/api/subscription` | Creates a subscription |
+| `GET` | `/api/subscription/{id}` | Gets a subscription by ID |
+| `PUT` | `/api/subscription/{id}/plan` | Changes a subscription's plan |
 
-Create a subscription with a plan ID returned by the plans endpoint:
+The versioned aliases `/api/v1/plans` and `/api/v1/subscriptions` are also available. The current-subscription endpoint requires a `customerId` because the API does not include authentication or a customer session. It returns a subscription whose billing period includes today's date; if multiple periods match, it returns the one with the latest start date.
+
+List plans:
 
 ```sh
-curl -X POST http://localhost:8080/api/v1/subscriptions \
+curl http://localhost:8080/api/plans
+```
+
+Get a customer's current subscription:
+
+```sh
+curl "http://localhost:8080/api/subscription?customerId=customer-001"
+```
+
+Create a subscription:
+
+```sh
+curl -X POST http://localhost:8080/api/subscription \
   -H 'Content-Type: application/json' \
   -d '{
     "customerId": "customer-001",
@@ -94,23 +115,47 @@ curl -X POST http://localhost:8080/api/v1/subscriptions \
   }'
 ```
 
-`billingCycle` accepts `MONTHLY` or `ANNUAL` in the API request. The database stores these as lowercase values. `amountDue` is initialized to the selected plan’s price for either cycle; annual pricing adjustments are not implemented.
+`billingCycle` accepts `MONTHLY` or `ANNUAL`. `amountDue` is initialized to the selected plan's price for either cycle; annual pricing adjustments are not implemented.
 
-All responses use a shared envelope. A successful response has this shape:
+Change a subscription's plan (the subscription period stays the same, and `amountDue` is set to the new plan's price):
 
-```json
-{ "success": true, "data": { "id": 1 }, "error": null }
+```sh
+curl -X PUT http://localhost:8080/api/subscription/1/plan \
+  -H 'Content-Type: application/json' \
+  -d '{"planId": 2}'
 ```
 
-Errors return `success: false` and include an error code, message, and optional details.
+Activate or deactivate a plan:
 
-## API documentation and Postman
+```sh
+curl -X PUT http://localhost:8080/api/plans/2/activate
+curl -X PUT http://localhost:8080/api/plans/2/deactivate
+```
+
+Inactive plans remain visible in the plan list but cannot be used for new subscriptions or plan changes. Existing subscriptions to a deactivated plan continue to work.
+
+For databases created before plan activation was added, apply `src/main/resources/upgrade-day2.sql` once before starting the updated API. For a new database, use the updated `schema.sql` instead.
+
+## Responses and validation
+
+Responses use a shared JSON envelope. For example:
+
+```json
+{
+  "success": true,
+  "data": [{ "id": 1, "name": "Basic" }],
+  "error": null
+}
+```
+
+Errors use `success: false` and include an error code, message, and optional details. Request fields and positive path IDs are validated; invalid requests return a `400`, and missing records return a `404`.
+
+## Swagger and OpenAPI
 
 - Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 - OpenAPI JSON: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
-- Postman collection: [`postman/edabip-prathibha-api.postman_collection.json`](postman/edabip-prathibha-api.postman_collection.json). Set `baseUrl` and update `planId` and `subscriptionId` as needed.
 
-## Data model
+## ER diagram
 
 ```mermaid
 erDiagram

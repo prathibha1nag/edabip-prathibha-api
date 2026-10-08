@@ -1,11 +1,12 @@
 package com.edabip.billing.service;
 
-import com.edabip.billing.common.NotFoundException;
-import com.edabip.billing.model.Plan;
-import com.edabip.billing.repository.PlanRepository;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import com.edabip.billing.exceptionHandler.NotFoundException;
+import com.edabip.billing.model.Plan;
+import com.edabip.billing.repository.PlanRepository;
 
 @Service
 public class PlanService {
@@ -17,5 +18,15 @@ public class PlanService {
 
     public Plan findById(long id) {
         return repository.findById(id).orElseThrow(() -> new NotFoundException("Plan " + id + " was not found"));
+    }
+
+    public Plan activate(long id) { return setActive(id, true); }
+
+    public Plan deactivate(long id) { return setActive(id, false); }
+
+    private Plan setActive(long id, boolean active) {
+        findById(id);
+        repository.setActive(id, active);
+        return findById(id);
     }
 }

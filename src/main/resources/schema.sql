@@ -1,4 +1,4 @@
--- MySQL 8.0.16+ schema. Apply this file before seed.sql.
+-- MySQL 8.0.16+ schema. Apply this file before data.sql.
 
 CREATE TABLE plans (
     id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -8,6 +8,7 @@ CREATE TABLE plans (
     storage_limit_gb INT NOT NULL CHECK (storage_limit_gb > 0),
     reports_per_month INT NOT NULL CHECK (reports_per_month >= 0),
     support VARCHAR(100) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
