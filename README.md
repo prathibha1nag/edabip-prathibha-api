@@ -93,8 +93,8 @@ The current-subscription endpoint requires a `customerId` because the API does n
 Create a plan:
 
 ```sh
-curl -X POST http://localhost:8080/api/plans \\
-  -H 'Content-Type: application/json' \\
+curl -X POST http://localhost:8080/api/plans \
+  -H 'Content-Type: application/json' \
   -d '{
     "name": "Business",
     "price": 49.99,
@@ -114,7 +114,7 @@ curl http://localhost:8080/api/plans
 Get a customer's current subscription:
 
 ```sh
-curl "http://localhost:8080/api/subscription?customerId=customer-001"
+curl "http://localhost:8080/api/subscription?customerId=1"
 ```
 
 Create a subscription:
@@ -123,7 +123,7 @@ Create a subscription:
 curl -X POST http://localhost:8080/api/subscription \
   -H 'Content-Type: application/json' \
   -d '{
-    "customerId": "customer-001",
+    "customerId": 1,
     "planId": 1,
     "billingCycle": "MONTHLY",
     "currentPeriodStart": "2026-10-01",
@@ -187,7 +187,7 @@ erDiagram
     }
     SUBSCRIPTIONS {
         bigint id PK
-        varchar customer_id
+        bigint customer_id
         bigint plan_id FK
         varchar billing_cycle
         date current_period_start

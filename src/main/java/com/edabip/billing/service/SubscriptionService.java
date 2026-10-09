@@ -3,8 +3,8 @@ package com.edabip.billing.service;
 import org.springframework.stereotype.Service;
 
 import com.edabip.billing.exceptionHandler.NotFoundException;
-import com.edabip.billing.model.CreateSubscriptionRequest;
 import com.edabip.billing.model.ChangePlanRequest;
+import com.edabip.billing.model.CreateSubscriptionRequest;
 import com.edabip.billing.model.Plan;
 import com.edabip.billing.model.Subscription;
 import com.edabip.billing.repository.PlanRepository;
@@ -49,7 +49,7 @@ public class SubscriptionService {
                 .orElseThrow(() -> new NotFoundException("Subscription " + id + " was not found"));
     }
 
-    public Subscription findCurrentByCustomerId(String customerId) {
+    public Subscription findCurrentByCustomerId(Long customerId) {
         return subscriptions.findCurrentByCustomerId(customerId)
                 .orElseThrow(() -> new NotFoundException("No current subscription was found for customer " + customerId));
     }

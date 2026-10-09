@@ -1,8 +1,11 @@
 package com.edabip.billing.repository;
 
-import com.edabip.billing.model.BillingCycle;
-import com.edabip.billing.model.CreateSubscriptionRequest;
-import com.edabip.billing.model.Subscription;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.sql.Timestamp;
+import java.util.Objects;
+import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreator;
@@ -11,12 +14,9 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.Statement;
-import java.sql.Timestamp;
-import java.util.Objects;
-import java.util.Optional;
+import com.edabip.billing.model.BillingCycle;
+import com.edabip.billing.model.CreateSubscriptionRequest;
+import com.edabip.billing.model.Subscription;
 
 @Repository
 public class SubscriptionRepository {
@@ -28,7 +28,7 @@ public class SubscriptionRepository {
     private final JdbcTemplate jdbc;
     private final RowMapper<Subscription> mapper = (rs, row) -> {
         Timestamp payment = rs.getTimestamp("last_payment_at");
-        return new Subscription(rs.getLong("id"), rs.getString("customer_id"),
+        return new Subscription(rs.getLong("id"), rs.getLong("customer_id"),
                 rs.getLong("plan_id"), rs.getString("plan_name"),
                 BillingCycle.valueOf(rs.getString("billing_cycle").toUpperCase()),
                 rs.getDate("current_period_start").toLocalDate(),
@@ -44,7 +44,7 @@ public class SubscriptionRepository {
             PreparedStatement statement = connection.prepareStatement(
                     "INSERT INTO subscriptions (customer_id, plan_id, billing_cycle, current_period_start, current_period_end, amount_due) VALUES (?, ?, ?, ?, ?, ?)",
                     Statement.RETURN_GENERATED_KEYS);
-            statement.setString(1, request.customerId());
+            statement.setLong(1, request.customerId());
             statement.setLong(2, request.planId());
             statement.setString(3, request.billingCycle().name().toLowerCase());
             statement.setObject(4, request.currentPeriodStart());
@@ -66,7 +66,7 @@ public class SubscriptionRepository {
                 planId, amountDue, subscriptionId);
     }
 
-    public Optional<Subscription> findCurrentByCustomerId(String customerId) {
+    public Optional<Subscription> findCurrentByCustomerId(Long customerId) {
         return jdbc.query(SELECT + " WHERE s.customer_id = ? AND s.current_period_start <= CURRENT_DATE " +
                         "AND s.current_period_end > CURRENT_DATE ORDER BY s.current_period_start DESC, s.id DESC LIMIT 1",
                 mapper, customerId).stream().findFirst();

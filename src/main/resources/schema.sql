@@ -15,7 +15,7 @@ CREATE TABLE plans (
 
 CREATE TABLE subscriptions (
     id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    customer_id VARCHAR(120) NOT NULL,
+    customer_id BIGINT NOT NULL,
     plan_id BIGINT NOT NULL,
     billing_cycle VARCHAR(20) NOT NULL CHECK (billing_cycle IN ('monthly', 'annual')),
     current_period_start DATE NOT NULL,

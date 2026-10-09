@@ -21,7 +21,7 @@ import com.edabip.billing.service.SubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 @Validated
@@ -35,7 +35,7 @@ public class SubscriptionController {
 
     @GetMapping
     @Operation(summary = "Get the current subscription for a customer")
-    public ApiResponse<Subscription> findCurrent(@RequestParam @NotBlank String customerId) {
+    public ApiResponse<Subscription> findCurrent(@RequestParam @NotNull @Positive Long customerId) {
         return ApiResponse.ok(service.findCurrentByCustomerId(customerId));
     }
 
