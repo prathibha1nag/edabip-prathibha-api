@@ -1,94 +1,129 @@
-# Edabip Prathibha API
+# Edabip Prathibha Billing API
 
-REST API for subscription plans and subscriptions, built with Java, Spring Boot, PostgreSQL, and JDBC. Persistence uses `JdbcTemplate`; the project does not use JPA or Hibernate.
+A Spring Boot REST API for subscription plans and customer subscriptions. It uses Spring JDBC (`JdbcTemplate`) with MySQL; it does not use JPA or Hibernate.
+
+## Project layout
+
+```text
+src/main/java/com/edabip/billing/
+|-- EdabipApplication.java
+|-- controller/   HTTP endpoints
+|-- service/      application logic
+|-- repository/   JDBC queries and row mapping
+|-- model/        request and response models
+`-- exceptionHandler/ shared response format and exception handling
+
+src/main/resources/
+|-- application.properties
+|-- schema.sql
+`-- data.sql
+```
 
 ## Requirements
 
 - Java 17 or newer
 - Maven 3.6.3 or newer
-- PostgreSQL
+- MySQL 8.0.16 or newer
 
-## Setup
+## Database setup
 
-1. Create a PostgreSQL database:
+Create the database in MySQL:
 
-   ```sql
-   CREATE DATABASE edabip_prathibha;
-   ```
-
-2. Apply the schema and sample plan data from the repository root:
-
-   ```sh
-   psql -U postgres -d edabip_prathibha -f schema.sql
-   psql -U postgres -d edabip_prathibha -f seed.sql
-   ```
-
-   `seed.sql` contains example prices and limits. Replace them with product-approved values before using the API in production.
-
-3. Configure the database. Defaults are `localhost:5432`, database `edabip_prathibha`, user `postgres`, password `postgres`. Override them with environment variables:
-
-   ```sh
-   DB_URL=jdbc:postgresql://localhost:5432/edabip_prathibha
-   DB_USERNAME=postgres
-   DB_PASSWORD=your-password
-   PORT=8080
-   ```
-
-   PowerShell example:
-
-   ```powershell
-   $env:DB_PASSWORD = 'your-password'
-   ```
-
-4. Start the API:
-
-   ```sh
-   mvn spring-boot:run
-   ```
-
-   Or package and run the jar:
-
-   ```sh
-   mvn clean package
-   java -jar target/prathibha-api-0.1.0.jar
-   ```
-
-## Architecture
-
-```text
-Controller  ->  Service  ->  Repository (JdbcTemplate)  ->  PostgreSQL
+```sql
+CREATE DATABASE edabip_prathibha CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 ```
 
-- `controller` endpoints parse requests and produce response envelopes.
-- `service` contains application rules and not-found checks.
-- `repository` contains SQL and row mapping.
-- `common` contains the shared response format and global exception handler.
+From the repository root, apply the schema and then insert the sample plans:
 
-## API
-
-All API responses use the same envelope. Successful responses look like:
-
-```json
-{ "success": true, "data": { "id": 1 }, "error": null }
+```sh
+mysql -u root -p edabip_prathibha < src/main/resources/schema.sql
+mysql -u root -p edabip_prathibha < src/main/resources/data.sql
 ```
 
-Errors use `success: false` and include a stable error code, message, and optional details.
+The schema creates `plans` and `subscriptions`. It defines a foreign key from subscriptions to plans and checks plan limits, nonnegative amounts, billing cycles, and subscription period dates. The sample plans are Basic, Standard, and Enterprise. Replace their example prices and limits with product-approved values before production use.
+
+## Configuration
+
+`src/main/resources/application.properties` reads these environment variables:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DB_URL` | `jdbc:mysql://localhost:3306/edabip_prathibha?serverTimezone=UTC` | MySQL JDBC URL |
+| `DB_USERNAME` | `root` | MySQL username |
+| `DB_PASSWORD` | `123456` | MySQL password |
+| `PORT` | `8080` | HTTP port |
+
+PowerShell example:
+
+```powershell
+$env:DB_PASSWORD = 'your-password'
+```
+
+SQL initialization is disabled at application startup. Apply `schema.sql` and `data.sql` manually as shown above; this avoids rerunning `CREATE TABLE` every time the API starts.
+
+## Run
+
+```sh
+mvn spring-boot:run
+```
+
+Or build and run the executable jar:
+
+```sh
+mvn clean package
+java -jar target/prathibha-api-0.1.0.jar
+```
+
+## API endpoints
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/health` | Checks API and database availability |
-| `GET` | `/api/v1/plans` | Lists plans ordered by price |
-| `GET` | `/api/v1/plans/{id}` | Gets a plan |
-| `POST` | `/api/v1/subscriptions` | Creates a subscription |
-| `GET` | `/api/v1/subscriptions/{id}` | Gets a subscription |
+| `POST` | `/api/plans` | Creates a plan |
+| `GET` | `/api/plans` | Lists plans ordered by price |
+| `GET` | `/api/plans/{id}` | Gets a plan by ID |
+| `PUT` | `/api/plans/{id}/activate` | Activates a plan |
+| `PUT` | `/api/plans/{id}/deactivate` | Deactivates a plan |
+| `GET` | `/api/subscription?customerId={customerId}` | Gets the customer's current subscription |
+| `POST` | `/api/subscription` | Creates a subscription |
+| `GET` | `/api/subscription/{id}` | Gets a subscription by ID |
+| `PUT` | `/api/subscription/{id}/plan` | Changes a subscription's plan |
 
-Create subscription example:
+The current-subscription endpoint requires a `customerId` because the API does not include authentication or a customer session. It returns a subscription whose billing period includes today's date; if multiple periods match, it returns the one with the latest start date.
+
+Create a plan:
 
 ```sh
-curl -X POST http://localhost:8080/api/v1/subscriptions \
+curl -X POST http://localhost:8080/api/plans \
   -H 'Content-Type: application/json' \
   -d '{
-    "customerId": "customer-001",
+    "name": "Business",
+    "price": 49.99,
+    "userLimit": 25,
+    "storageLimitGb": 100,
+    "reportsPerMonth": 500,
+    "support": "Priority email"
+  }'
+```
+
+List plans:
+
+```sh
+curl http://localhost:8080/api/plans
+```
+
+Get a customer's current subscription:
+
+```sh
+curl "http://localhost:8080/api/subscription?customerId=1"
+```
+
+Create a subscription:
+
+```sh
+curl -X POST http://localhost:8080/api/subscription \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "customerId": 1,
     "planId": 1,
     "billingCycle": "MONTHLY",
     "currentPeriodStart": "2026-10-01",
@@ -96,13 +131,45 @@ curl -X POST http://localhost:8080/api/v1/subscriptions \
   }'
 ```
 
-`amountDue` is initialized from the selected plan's `price` for both billing cycles; annual discounts or multipliers are not applied yet.
+`billingCycle` accepts `MONTHLY` or `ANNUAL`. `amountDue` is initialized to the selected plan's price for either cycle; annual pricing adjustments are not implemented.
 
-## Swagger and Postman
+Change a subscription's plan (the subscription period stays the same, and `amountDue` is set to the new plan's price):
+
+```sh
+curl -X PUT http://localhost:8080/api/subscription/1/plan \
+  -H 'Content-Type: application/json' \
+  -d '{"planId": 2}'
+```
+
+Activate or deactivate a plan:
+
+```sh
+curl -X PUT http://localhost:8080/api/plans/2/activate
+curl -X PUT http://localhost:8080/api/plans/2/deactivate
+```
+
+Inactive plans remain visible in the plan list but cannot be used for new subscriptions or plan changes. Existing subscriptions to a deactivated plan continue to work.
+
+For databases created before plan activation was added, apply `src/main/resources/upgrade-day2.sql` once before starting the updated API. For a new database, use the updated `schema.sql` instead.
+
+## Responses and validation
+
+Responses use a shared JSON envelope. For example:
+
+```json
+{
+  "success": true,
+  "data": [{ "id": 1, "name": "Basic" }],
+  "error": null
+}
+```
+
+Errors use `success: false` and include an error code, message, and optional details. Request fields and positive path IDs are validated; invalid requests return a `400`, and missing records return a `404`.
+
+## Swagger and OpenAPI
 
 - Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-- OpenAPI document: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
-- Import [`postman/edabip-prathibha-api.postman_collection.json`](postman/edabip-prathibha-api.postman_collection.json) into Postman. Set `baseUrl`, and set `planId`/`subscriptionId` as needed.
+- OpenAPI JSON: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
 
 ## ER diagram
 
@@ -112,20 +179,20 @@ erDiagram
     PLANS {
         bigint id PK
         varchar name UK
-        numeric price
-        integer user_limit
-        integer storage_limit_gb
-        integer reports_per_month
+        decimal price
+        int user_limit
+        int storage_limit_gb
+        int reports_per_month
         varchar support
     }
     SUBSCRIPTIONS {
         bigint id PK
-        varchar customer_id
+        bigint customer_id
         bigint plan_id FK
         varchar billing_cycle
         date current_period_start
         date current_period_end
-        numeric amount_due
-        timestamptz last_payment_at
+        decimal amount_due
+        timestamp last_payment_at
     }
 ```
