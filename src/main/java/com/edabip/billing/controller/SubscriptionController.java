@@ -26,7 +26,7 @@ import jakarta.validation.constraints.Positive;
 
 @Validated
 @RestController
-@RequestMapping({"/api/subscription", "/api/v1/subscriptions"})
+@RequestMapping("/api/subscription")
 @Tag(name = "Subscriptions")
 public class SubscriptionController {
     private final SubscriptionService service;

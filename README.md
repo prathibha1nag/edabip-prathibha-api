@@ -78,6 +78,7 @@ java -jar target/prathibha-api-0.1.0.jar
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
+| `POST` | `/api/plans` | Creates a plan |
 | `GET` | `/api/plans` | Lists plans ordered by price |
 | `GET` | `/api/plans/{id}` | Gets a plan by ID |
 | `PUT` | `/api/plans/{id}/activate` | Activates a plan |
@@ -87,7 +88,22 @@ java -jar target/prathibha-api-0.1.0.jar
 | `GET` | `/api/subscription/{id}` | Gets a subscription by ID |
 | `PUT` | `/api/subscription/{id}/plan` | Changes a subscription's plan |
 
-The versioned aliases `/api/v1/plans` and `/api/v1/subscriptions` are also available. The current-subscription endpoint requires a `customerId` because the API does not include authentication or a customer session. It returns a subscription whose billing period includes today's date; if multiple periods match, it returns the one with the latest start date.
+The current-subscription endpoint requires a `customerId` because the API does not include authentication or a customer session. It returns a subscription whose billing period includes today's date; if multiple periods match, it returns the one with the latest start date.
+
+Create a plan:
+
+```sh
+curl -X POST http://localhost:8080/api/plans \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "name": "Business",
+    "price": 49.99,
+    "userLimit": 25,
+    "storageLimitGb": 100,
+    "reportsPerMonth": 500,
+    "support": "Priority email"
+  }'
+```
 
 List plans:
 

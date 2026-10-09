@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import com.edabip.billing.exceptionHandler.NotFoundException;
 import com.edabip.billing.model.Plan;
+import com.edabip.billing.model.CreatePlanRequest;
 import com.edabip.billing.repository.PlanRepository;
 
 @Service
@@ -15,6 +16,8 @@ public class PlanService {
     public PlanService(PlanRepository repository) { this.repository = repository; }
 
     public List<Plan> findAll() { return repository.findAll(); }
+
+    public Plan create(CreatePlanRequest request) { return repository.create(request); }
 
     public Plan findById(long id) {
         return repository.findById(id).orElseThrow(() -> new NotFoundException("Plan " + id + " was not found"));
