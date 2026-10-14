@@ -14,4 +14,6 @@ public record CreatePlanRequest(
         @NotNull @Positive Integer userLimit,
         @NotNull @Positive Integer storageLimitGb,
         @NotNull @Min(0) Integer reportsPerMonth,
+        @NotNull @Min(0) Integer activeDashboardLimit,
+        @NotNull @Min(0) Integer dataProcessingLimitGb,
         @NotBlank String support) {}
