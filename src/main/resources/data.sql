@@ -9,7 +9,7 @@ VALUES
 INSERT INTO customer_usage
     (customer_id, active_users, storage_used_gb, reports_generated, active_dashboards, data_processing_gb)
 VALUES
-    (1, 4, 6.25, 37, 2, 8.50)
+    (1, 4, 6.25, 37, 2, 8.50),(2, 10, 50.00, 500, 10, 100.00),(3, 75, 750.00, 7500, 75, 1500.00)
 ON DUPLICATE KEY UPDATE active_users = VALUES(active_users), storage_used_gb = VALUES(storage_used_gb),
     reports_generated = VALUES(reports_generated), active_dashboards = VALUES(active_dashboards),
     data_processing_gb = VALUES(data_processing_gb);

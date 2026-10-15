@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Locale;
+import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
@@ -14,6 +15,10 @@ import com.edabip.billing.model.Invoice;
 import com.edabip.billing.model.PageResult;
 import com.edabip.billing.model.UsageMetric;
 import com.edabip.billing.model.UsageOverview;
+import com.edabip.billing.model.InvoiceSummary;
+import com.edabip.billing.model.MonthlyInvoiceTotal;
+import com.edabip.billing.model.PaymentMethod;
+import com.edabip.billing.model.CreatePaymentMethodRequest;
 import com.edabip.billing.repository.BillingRepository;
 import com.edabip.billing.repository.BillingRepository.UsageSnapshot;
 
@@ -55,6 +60,43 @@ public class BillingService {
         List<Invoice> items = billing.findInvoices(customerId, normalizedStatus,
                 selectedSort.column(), selectedSort.direction(), size, (long) page * size);
         return new PageResult<>(items, page, size, total, totalPages, selectedSort.label());
+    }
+
+    public InvoiceSummary invoiceSummary(long customerId) { return billing.invoiceSummary(customerId); }
+
+    public List<MonthlyInvoiceTotal> monthlyInvoiceTotals(long customerId) { return billing.monthlyTotals(customerId); }
+
+    public List<PaymentMethod> listPaymentMethods(long customerId) { return billing.paymentMethods(customerId); }
+
+    @Transactional
+    public PaymentMethod addPaymentMethod(long customerId, CreatePaymentMethodRequest request) {
+        if (request.expiryYear() < java.time.Year.now().getValue() ||
+                (request.expiryYear() == java.time.Year.now().getValue() && request.expiryMonth() < java.time.LocalDate.now().getMonthValue()))
+            throw new IllegalArgumentException("payment method expiry must be in the future");
+        boolean makePrimary = request.makePrimary() || billing.paymentMethodCount(customerId) == 0;
+        if (makePrimary) billing.paymentMethods(customerId).stream().filter(PaymentMethod::primary)
+                .findFirst().ifPresent(old -> billing.setPaymentMethodPrimary(customerId, old.id(), false));
+        billing.addPaymentMethod(customerId, request.brand().trim(), request.lastFour(), request.expiryMonth(), request.expiryYear(), makePrimary);
+        return billing.paymentMethods(customerId).stream().filter(m -> m.brand().equalsIgnoreCase(request.brand().trim()) && m.lastFour().equals(request.lastFour()))
+                .findFirst().orElseThrow();
+    }
+
+    @Transactional
+    public PaymentMethod setPrimaryPaymentMethod(long customerId, long id) {
+        List<PaymentMethod> target = billing.findPaymentMethod(customerId, id);
+        if (target.isEmpty()) throw new NotFoundException("Payment method " + id + " was not found for customer " + customerId);
+        billing.paymentMethods(customerId).stream().filter(PaymentMethod::primary).filter(m -> !m.id().equals(id))
+                .forEach(m -> billing.setPaymentMethodPrimary(customerId, m.id(), false));
+        billing.setPaymentMethodPrimary(customerId, id, true);
+        return billing.findPaymentMethod(customerId,id).get(0);
+    }
+
+    @Transactional
+    public void removePaymentMethod(long customerId, long id) {
+        List<PaymentMethod> method = billing.findPaymentMethod(customerId,id);
+        if (method.isEmpty()) throw new NotFoundException("Payment method " + id + " was not found for customer " + customerId);
+        if (method.get(0).primary()) throw new IllegalArgumentException("Choose another primary payment method before removing this one");
+        billing.deletePaymentMethod(customerId,id);
     }
 
     private String normalizeStatus(String status) {

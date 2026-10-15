@@ -5,11 +5,21 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import com.edabip.billing.exceptionHandler.ApiResponse;
 import com.edabip.billing.model.Invoice;
 import com.edabip.billing.model.PageResult;
 import com.edabip.billing.model.UsageOverview;
+import com.edabip.billing.model.InvoiceSummary;
+import com.edabip.billing.model.MonthlyInvoiceTotal;
+import com.edabip.billing.model.PaymentMethod;
+import com.edabip.billing.model.CreatePaymentMethodRequest;
+import java.util.List;
 import com.edabip.billing.service.BillingService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,6 +63,44 @@ public class BillingController {
             @RequestParam(required = false) String status,
             @Parameter(example = "periodStart,desc") @RequestParam(defaultValue = "periodStart,desc") String sort) {
         return ApiResponse.ok(service.listInvoices(customerId, page, size, status, sort));
+    }
+
+    @GetMapping("/invoices/summary")
+    @Operation(summary="Invoice totals for a customer", description="Example: GET /api/invoices/summary?customerId=1")
+    public ApiResponse<InvoiceSummary> invoiceSummary(@RequestParam @Positive long customerId) {
+        return ApiResponse.ok(service.invoiceSummary(customerId));
+    }
+
+    @GetMapping("/invoices/monthly-totals")
+    @Operation(summary="Monthly invoice totals for the last six months", description="Example: GET /api/invoices/monthly-totals?customerId=1. Includes only months with invoices.")
+    public ApiResponse<List<MonthlyInvoiceTotal>> monthlyInvoiceTotals(@RequestParam @Positive long customerId) {
+        return ApiResponse.ok(service.monthlyInvoiceTotals(customerId));
+    }
+
+    @GetMapping("/payment-methods")
+    @Operation(summary="List a customer's payment methods")
+    public ApiResponse<List<PaymentMethod>> paymentMethods(@RequestParam @Positive long customerId) {
+        return ApiResponse.ok(service.listPaymentMethods(customerId));
+    }
+
+    @PostMapping("/payment-methods")
+    @Operation(summary="Add a payment method", description="Example payload: {\"customerId\":1,\"brand\":\"Visa\",\"lastFour\":\"4242\",\"expiryMonth\":12,\"expiryYear\":2028,\"makePrimary\":false}. Only brand, last four digits, and expiry are accepted; full PAN and CVV are never stored.")
+    public ApiResponse<PaymentMethod> addPaymentMethod(@RequestParam @Positive long customerId,
+            @jakarta.validation.Valid @RequestBody CreatePaymentMethodRequest request) {
+        return ApiResponse.ok(service.addPaymentMethod(customerId, request));
+    }
+
+    @PutMapping("/payment-methods/{id}/primary")
+    @Operation(summary="Set a payment method as primary", description="Runs the primary-method swap transactionally.")
+    public ApiResponse<PaymentMethod> setPrimary(@RequestParam @Positive long customerId, @PathVariable @Positive long id) {
+        return ApiResponse.ok(service.setPrimaryPaymentMethod(customerId,id));
+    }
+
+    @DeleteMapping("/payment-methods/{id}")
+    @Operation(summary="Remove a non-primary payment method", description="A primary method must first be replaced.")
+    public ApiResponse<Void> removePaymentMethod(@RequestParam @Positive long customerId, @PathVariable @Positive long id) {
+        service.removePaymentMethod(customerId,id);
+        return ApiResponse.ok(null);
     }
 }
 

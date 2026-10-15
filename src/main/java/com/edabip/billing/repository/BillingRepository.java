@@ -9,6 +9,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.edabip.billing.model.Invoice;
+import com.edabip.billing.model.InvoiceSummary;
+import com.edabip.billing.model.MonthlyInvoiceTotal;
+import com.edabip.billing.model.PaymentMethod;
 
 @Repository
 public class BillingRepository {
@@ -61,6 +64,54 @@ public class BillingRepository {
                 ? jdbc.queryForObject("SELECT COUNT(*) FROM invoices WHERE customer_id = ?", Long.class, customerId)
                 : jdbc.queryForObject("SELECT COUNT(*) FROM invoices WHERE customer_id = ? AND status = ?", Long.class, customerId, status);
         return count == null ? 0 : count;
+    }
+
+    public InvoiceSummary invoiceSummary(long customerId) {
+        return jdbc.queryForObject("SELECT COALESCE(SUM(CASE WHEN status='Paid' THEN amount ELSE 0 END),0) total_paid, " +
+                "COUNT(*) total_invoices, COALESCE(SUM(CASE WHEN status='Due' THEN amount ELSE 0 END),0) outstanding " +
+                "FROM invoices WHERE customer_id=?", (rs, row) -> new InvoiceSummary(
+                rs.getBigDecimal("total_paid"), rs.getLong("total_invoices"), rs.getBigDecimal("outstanding")), customerId);
+    }
+
+    public List<MonthlyInvoiceTotal> monthlyTotals(long customerId) {
+        return jdbc.query("WITH RECURSIVE months(month_start) AS (SELECT DATE_FORMAT(DATE_SUB(CURRENT_DATE, INTERVAL 5 MONTH),'%Y-%m-01') " +
+                "UNION ALL SELECT DATE_ADD(month_start, INTERVAL 1 MONTH) FROM months WHERE month_start < DATE_FORMAT(CURRENT_DATE,'%Y-%m-01')) " +
+                "SELECT DATE_FORMAT(m.month_start,'%Y-%m') month, COALESCE(SUM(i.amount),0) total FROM months m " +
+                "LEFT JOIN invoices i ON i.customer_id=? AND i.period_start >= m.month_start AND i.period_start < DATE_ADD(m.month_start, INTERVAL 1 MONTH) " +
+                "GROUP BY m.month_start ORDER BY m.month_start", (rs,row) ->
+                new MonthlyInvoiceTotal(rs.getString("month"), rs.getBigDecimal("total")), customerId);
+    }
+
+    public List<PaymentMethod> paymentMethods(long customerId) {
+        return jdbc.query("SELECT id,customer_id,brand,last_four,expiry_month,expiry_year,is_primary FROM payment_methods WHERE customer_id=? ORDER BY is_primary DESC,id",
+                (rs,row)->new PaymentMethod(rs.getLong("id"),rs.getLong("customer_id"),rs.getString("brand"),rs.getString("last_four"),rs.getInt("expiry_month"),rs.getInt("expiry_year"),rs.getBoolean("is_primary")), customerId);
+    }
+
+    public int paymentMethodCount(long customerId) {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM payment_methods WHERE customer_id=?", Integer.class, customerId);
+    }
+
+    public int addPaymentMethod(long customerId, String brand, String lastFour, int month, int year, boolean primary) {
+        return jdbc.update("INSERT INTO payment_methods(customer_id,brand,last_four,expiry_month,expiry_year,is_primary) VALUES(?,?,?,?,?,?)",
+                customerId,brand,lastFour,month,year,primary);
+    }
+
+    public int setPaymentMethodPrimary(long customerId, long id, boolean primary) {
+        return jdbc.update("UPDATE payment_methods SET is_primary=? WHERE customer_id=? AND id=?",primary,customerId,id);
+    }
+
+    public boolean isPaymentMethodPrimary(long customerId,long id) {
+        List<Boolean> values=jdbc.query("SELECT is_primary FROM payment_methods WHERE customer_id=? AND id=?",(rs,row)->rs.getBoolean(1),customerId,id);
+        return !values.isEmpty() && values.get(0);
+    }
+
+    public int deletePaymentMethod(long customerId,long id) {
+        return jdbc.update("DELETE FROM payment_methods WHERE customer_id=? AND id=?",customerId,id);
+    }
+
+    public List<PaymentMethod> findPaymentMethod(long customerId,long id) {
+        return jdbc.query("SELECT id,customer_id,brand,last_four,expiry_month,expiry_year,is_primary FROM payment_methods WHERE customer_id=? AND id=?",
+                (rs,row)->new PaymentMethod(rs.getLong("id"),rs.getLong("customer_id"),rs.getString("brand"),rs.getString("last_four"),rs.getInt("expiry_month"),rs.getInt("expiry_year"),rs.getBoolean("is_primary")),customerId,id);
     }
 
     private Invoice mapInvoice(long id, Date start, Date end, BigDecimal amount, String status, Date paidOn) {
