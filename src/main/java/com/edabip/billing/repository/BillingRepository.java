@@ -87,10 +87,6 @@ public class BillingRepository {
                 (rs,row)->new PaymentMethod(rs.getLong("id"),rs.getLong("customer_id"),rs.getString("brand"),rs.getString("last_four"),rs.getInt("expiry_month"),rs.getInt("expiry_year"),rs.getBoolean("is_primary")), customerId);
     }
 
-    public int paymentMethodCount(long customerId) {
-        return jdbc.queryForObject("SELECT COUNT(*) FROM payment_methods WHERE customer_id=?", Integer.class, customerId);
-    }
-
     public int addPaymentMethod(long customerId, String brand, String lastFour, int month, int year, boolean primary) {
         return jdbc.update("INSERT INTO payment_methods(customer_id,brand,last_four,expiry_month,expiry_year,is_primary) VALUES(?,?,?,?,?,?)",
                 customerId,brand,lastFour,month,year,primary);

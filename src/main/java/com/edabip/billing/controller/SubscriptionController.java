@@ -20,6 +20,8 @@ import com.edabip.billing.service.SubscriptionService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -41,7 +43,11 @@ public class SubscriptionController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create a subscription")
+    @Operation(summary = "Create a subscription", description = "Example: {\"customerId\":1,\"planId\":1,\"billingCycle\":\"MONTHLY\",\"currentPeriodStart\":\"2026-10-01\",\"currentPeriodEnd\":\"2026-11-01\"}")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Subscription created using the selected plan's current price",
+            content = @Content(examples = @ExampleObject(value = """
+                    {"success":true,"data":{"id":1,"customerId":1,"planId":1,"planName":"Basic","billingCycle":"MONTHLY","currentPeriodStart":"2026-10-01","currentPeriodEnd":"2026-11-01","amountDue":9.99,"lastPaymentAt":null},"error":null}
+                    """)))
     public ApiResponse<Subscription> create(@Valid @RequestBody CreateSubscriptionRequest request) {
         return ApiResponse.ok(service.create(request));
     }
@@ -53,7 +59,11 @@ public class SubscriptionController {
     }
 
     @PutMapping("/{id}/plan")
-    @Operation(summary = "Change the plan for a subscription")
+    @Operation(summary = "Change the plan for a subscription", description = "Example payload: {\"planId\":2}. The subscription amount due is updated to the selected plan's price.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subscription updated to the new plan",
+            content = @Content(examples = @ExampleObject(value = """
+                    {"success":true,"data":{"id":1,"customerId":1,"planId":2,"planName":"Standard","billingCycle":"MONTHLY","currentPeriodStart":"2026-10-01","currentPeriodEnd":"2026-11-01","amountDue":29.99,"lastPaymentAt":null},"error":null}
+                    """)))
     public ApiResponse<Subscription> changePlan(@PathVariable @Positive long id,
                                                  @Valid @RequestBody ChangePlanRequest request) {
         return ApiResponse.ok(service.changePlan(id, request));

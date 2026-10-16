@@ -73,8 +73,10 @@ public class BillingService {
         if (request.expiryYear() < java.time.Year.now().getValue() ||
                 (request.expiryYear() == java.time.Year.now().getValue() && request.expiryMonth() < java.time.LocalDate.now().getMonthValue()))
             throw new IllegalArgumentException("payment method expiry must be in the future");
-        boolean makePrimary = request.makePrimary() || billing.paymentMethodCount(customerId) == 0;
-        if (makePrimary) billing.paymentMethods(customerId).stream().filter(PaymentMethod::primary)
+        List<PaymentMethod> existingMethods = billing.paymentMethods(customerId);
+        boolean makePrimary = request.makePrimary() || existingMethods.isEmpty() ||
+                existingMethods.stream().noneMatch(PaymentMethod::primary);
+        if (makePrimary) existingMethods.stream().filter(PaymentMethod::primary)
                 .findFirst().ifPresent(old -> billing.setPaymentMethodPrimary(customerId, old.id(), false));
         billing.addPaymentMethod(customerId, request.brand().trim(), request.lastFour(), request.expiryMonth(), request.expiryYear(), makePrimary);
         return billing.paymentMethods(customerId).stream().filter(m -> m.brand().equalsIgnoreCase(request.brand().trim()) && m.lastFour().equals(request.lastFour()))

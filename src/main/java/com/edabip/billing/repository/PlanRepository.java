@@ -2,6 +2,7 @@ package com.edabip.billing.repository;
 
 import com.edabip.billing.model.Plan;
 import com.edabip.billing.model.CreatePlanRequest;
+import com.edabip.billing.model.PageResult;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -24,8 +25,17 @@ public class PlanRepository {
 
     public PlanRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
-    public List<Plan> findAll() {
-        return jdbc.query("SELECT id, name, price, user_limit, storage_limit_gb, reports_per_month, active_dashboard_limit, data_processing_limit_gb, support, active FROM plans ORDER BY price, id", mapper);
+    public PageResult<Plan> findAll(int page, int size, String sortColumn, String direction, String sortLabel) {
+        long total = countAll();
+        int totalPages = (int) ((total + size - 1) / size);
+        List<Plan> items = jdbc.query("SELECT id, name, price, user_limit, storage_limit_gb, reports_per_month, active_dashboard_limit, data_processing_limit_gb, support, active " +
+                "FROM plans ORDER BY " + sortColumn + " " + direction + ", id ASC LIMIT ? OFFSET ?", mapper, size, (long) page * size);
+        return new PageResult<>(items, page, size, total, totalPages, sortLabel);
+    }
+
+    public long countAll() {
+        Long count = jdbc.queryForObject("SELECT COUNT(*) FROM plans", Long.class);
+        return count == null ? 0 : count;
     }
 
     public Optional<Plan> findById(long id) {

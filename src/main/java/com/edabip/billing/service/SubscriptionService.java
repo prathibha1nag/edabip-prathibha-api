@@ -1,6 +1,9 @@
 package com.edabip.billing.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.edabip.billing.exceptionHandler.NotFoundException;
 import com.edabip.billing.model.ChangePlanRequest;
@@ -12,6 +15,7 @@ import com.edabip.billing.repository.SubscriptionRepository;
 
 @Service
 public class SubscriptionService {
+    private static final Logger log = LoggerFactory.getLogger(SubscriptionService.class);
     private final SubscriptionRepository subscriptions;
     private final PlanRepository plans;
 
@@ -20,7 +24,9 @@ public class SubscriptionService {
         this.plans = plans;
     }
 
+    @Transactional
     public Subscription create(CreateSubscriptionRequest request) {
+        log.info("Creating subscription customerId={}, planId={}", request.customerId(), request.planId());
         if (!request.currentPeriodEnd().isAfter(request.currentPeriodStart())) {
             throw new IllegalArgumentException("currentPeriodEnd must be after currentPeriodStart");
         }
@@ -30,7 +36,9 @@ public class SubscriptionService {
         return subscriptions.create(request, plan.price());
     }
 
+    @Transactional
     public Subscription changePlan(long subscriptionId, ChangePlanRequest request) {
+        log.info("Changing plan for subscriptionId={}, planId={}", subscriptionId, request.planId());
         subscriptions.findById(subscriptionId)
                 .orElseThrow(() -> new NotFoundException("Subscription " + subscriptionId + " was not found"));
         Plan plan = plans.findById(request.planId())
