@@ -1,74 +1,10 @@
 package com.edabip.billing.repository;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.Statement;
-import java.sql.Timestamp;
-import java.util.Objects;
-import java.util.Optional;
-
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.PreparedStatementCreator;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.stereotype.Repository;
-
-import com.edabip.billing.model.BillingCycle;
-import com.edabip.billing.model.CreateSubscriptionRequest;
-import com.edabip.billing.model.Subscription;
-
-@Repository
-public class SubscriptionRepository {
-    private static final String SELECT = """
-            SELECT s.id, s.customer_id, s.plan_id, p.name AS plan_name, s.billing_cycle,
-                   s.current_period_start, s.current_period_end, s.amount_due, s.last_payment_at
-            FROM subscriptions s JOIN plans p ON p.id = s.plan_id
-            """;
-    private final JdbcTemplate jdbc;
-    private final RowMapper<Subscription> mapper = (rs, row) -> {
-        Timestamp payment = rs.getTimestamp("last_payment_at");
-        return new Subscription(rs.getLong("id"), rs.getLong("customer_id"),
-                rs.getLong("plan_id"), rs.getString("plan_name"),
-                BillingCycle.valueOf(rs.getString("billing_cycle").toUpperCase()),
-                rs.getDate("current_period_start").toLocalDate(),
-                rs.getDate("current_period_end").toLocalDate(),
-                rs.getBigDecimal("amount_due"), payment == null ? null : payment.toInstant());
-    };
-
-    public SubscriptionRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
-
-    public Subscription create(CreateSubscriptionRequest request, java.math.BigDecimal amountDue) {
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        PreparedStatementCreator creator = (Connection connection) -> {
-            PreparedStatement statement = connection.prepareStatement(
-                    "INSERT INTO subscriptions (customer_id, plan_id, billing_cycle, current_period_start, current_period_end, amount_due) VALUES (?, ?, ?, ?, ?, ?)",
-                    Statement.RETURN_GENERATED_KEYS);
-            statement.setLong(1, request.customerId());
-            statement.setLong(2, request.planId());
-            statement.setString(3, request.billingCycle().name().toLowerCase());
-            statement.setObject(4, request.currentPeriodStart());
-            statement.setObject(5, request.currentPeriodEnd());
-            statement.setBigDecimal(6, amountDue);
-            return statement;
-        };
-        jdbc.update(creator, keyHolder);
-        long id = Objects.requireNonNull(keyHolder.getKey()).longValue();
-        return findById(id).orElseThrow();
-    }
-
-    public Optional<Subscription> findById(long id) {
-        return jdbc.query(SELECT + " WHERE s.id = ?", mapper, id).stream().findFirst();
-    }
-
-    public void changePlan(long subscriptionId, long planId, java.math.BigDecimal amountDue) {
-        jdbc.update("UPDATE subscriptions SET plan_id = ?, amount_due = ? WHERE id = ?",
-                planId, amountDue, subscriptionId);
-    }
-
-    public Optional<Subscription> findCurrentByCustomerId(Long customerId) {
-        return jdbc.query(SELECT + " WHERE s.customer_id = ? AND s.current_period_start <= CURRENT_DATE " +
-                        "AND s.current_period_end > CURRENT_DATE ORDER BY s.current_period_start DESC, s.id DESC LIMIT 1",
-                mapper, customerId).stream().findFirst();
-    }
+import com.edabip.billing.entity.*; import com.edabip.billing.model.*; import org.springframework.stereotype.Repository; import java.math.BigDecimal; import java.util.*;
+@Repository public class SubscriptionRepository {
+ private final SubscriptionJpaRepository jpa;private final PlanJpaRepository plans; public SubscriptionRepository(SubscriptionJpaRepository jpa,PlanJpaRepository plans){this.jpa=jpa;this.plans=plans;}
+ public Subscription create(CreateSubscriptionRequest r,BigDecimal amount){PlanEntity p=plans.findById(r.planId()).orElseThrow();return dto(jpa.save(new SubscriptionEntity(r.customerId(),p,r.billingCycle().name().toLowerCase(),r.currentPeriodStart(),r.currentPeriodEnd(),amount)));}
+ public Optional<Subscription> findById(long id){return jpa.findDetailedById(id).map(SubscriptionRepository::dto);}
+ public void changePlan(long sid,long pid,BigDecimal amount){SubscriptionEntity s=jpa.findById(sid).orElseThrow();s.setPlan(plans.findById(pid).orElseThrow());s.setAmountDue(amount);}
+ public Optional<Subscription> findCurrentByCustomerId(Long id){return jpa.findCurrent(id,java.time.LocalDate.now()).stream().findFirst().map(SubscriptionRepository::dto);}
+ public static Subscription dto(SubscriptionEntity s){return new Subscription(s.getId(),s.getCustomerId(),s.getPlan().getId(),s.getPlan().getName(),BillingCycle.valueOf(s.getBillingCycle().toUpperCase()),s.getCurrentPeriodStart(),s.getCurrentPeriodEnd(),s.getAmountDue(),s.getLastPaymentAt());}
 }

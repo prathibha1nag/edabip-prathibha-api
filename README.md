@@ -1,6 +1,6 @@
 # Edabip Prathibha Billing API
 
-A Spring Boot REST API for subscription plans and customer subscriptions. It uses Spring JDBC (`JdbcTemplate`) with MySQL; it does not use JPA or Hibernate.
+A Spring Boot REST API for subscription plans and customer subscriptions. The plans module and plan/subscription persistence mapping use Spring Data JPA with MySQL. Hibernate validates the manually managed SQL schema at startup.
 
 ## Project layout
 
@@ -18,6 +18,10 @@ src/main/resources/
 |-- schema.sql
 `-- data.sql
 ```
+
+## Task 3, Day 1
+
+Plan persistence now uses `PlanEntity` and `PlanJpaRepository`; list paging and sorting use Spring Data `Pageable`. Existing service/controller DTOs preserve the public JSON shape. `SubscriptionEntity` maps the plan many-to-one relationship, with the inverse collection on `PlanEntity`; subscription lookups fetch the plan needed for the response. The SQL schema remains the source of truth, and `spring.jpa.hibernate.ddl-auto=validate` checks it without modifying tables.
 
 ## Requirements
 
