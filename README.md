@@ -44,9 +44,9 @@ mysql -u root -p edabip_prathibha < src/main/resources/schema.sql
 mysql -u root -p edabip_prathibha < src/main/resources/data.sql
 ```
 
-The schema creates `plans`, `subscriptions`, `customer_usage`, `invoices`, and `payment_methods`. It defines the subscription-to-plan foreign key and checks plan limits, invoice status/period, and payment expiry fields. Sample usage, invoices, and payment methods belong to customer 1. Replace example prices and limits with product-approved values before production use. The payment-method table contains only a brand, last four digits, expiry, and primary flag; it has no full card number or CVV columns.
+The schema creates `users`, `plans`, `subscriptions`, `customer_usage`, `invoices`, and `payment_methods`. It defines the subscription-to-plan foreign key and checks plan limits, invoice status/period, and payment expiry fields. Sample usage, invoices, and payment methods belong to customer 1. Replace example prices and limits with product-approved values before production use. The payment-method table contains only a brand, last four digits, expiry, and primary flag; it has no full card number or CVV columns.
 
-For a database already created from Task 1, apply `src/main/resources/upgrade-day2.sql` and then `src/main/resources/upgrade-task2.sql`, once each, instead of rerunning `schema.sql`. The first adds plan activation; the second adds usage, invoice and payment-method tables and sample billing records.
+For a database already created from Task 1, apply `src/main/resources/upgrade-day2.sql` and then `src/main/resources/upgrade-task2.sql`, once each, instead of rerunning `schema.sql`. The first adds plan activation; the second adds the users, usage, invoice and payment-method tables and sample billing records.
 
 ## Configuration
 
@@ -58,12 +58,32 @@ For a database already created from Task 1, apply `src/main/resources/upgrade-da
 | `DB_USERNAME` | required | MySQL username |
 | `DB_PASSWORD` | required | MySQL password |
 | `PORT` | `8080` | HTTP port |
+| `JWT_SECRET` | local development value in `application.properties` | Override with a unique random secret of at least 32 UTF-8 bytes when deployed |
+| `JWT_EXPIRATION_MS` | `3600000` | Token lifetime in milliseconds (one hour by default) |
 
 PowerShell example:
 
 ```powershell
 $env:DB_PASSWORD = 'your-password'
 $env:DB_USERNAME = 'your-database-user'
+$env:JWT_SECRET = 'replace-with-a-random-secret-of-at-least-32-bytes'
+```
+
+`POST /api/auth/login` is the public login endpoint. Send the user's email and password as JSON; email is the login name. For now, `users.password` stores and compares the password as plain text. The SQL seed creates a demo account: `demo@example.com` / `demo123`. Only users with `status = 'ACTIVE'` can sign in. A successful login updates `last_login` and returns an access token carrying the user's role. All other API endpoints require `Authorization: Bearer <accessToken>`. Missing, malformed, invalid, and expired tokens return HTTP `401` in the standard error envelope. Swagger UI and OpenAPI docs remain public. The role is available as a `ROLE_<role>` authority in Spring Security; endpoints currently require authentication but do not restrict access by role.
+
+Example login:
+
+```sh
+curl -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"user@example.com","password":"your-password"}'
+```
+
+Use the returned `accessToken` on protected requests:
+
+```sh
+curl http://localhost:8080/api/plans \
+  -H 'Authorization: Bearer <accessToken>'
 ```
 
 SQL initialization is disabled at application startup. Apply `schema.sql` and `data.sql` manually as shown above; this avoids rerunning `CREATE TABLE` every time the API starts.
@@ -85,6 +105,7 @@ java -jar target/prathibha-api-0.1.0.jar
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
+| `POST` | `/api/auth/login` | Authenticates the configured API user and returns a JWT |
 | `POST` | `/api/plans` | Creates a plan |
 | `GET` | `/api/plans?page=0&size=20&sort=price,asc` | Lists plans with pagination and sorting |
 | `GET` | `/api/plans/{id}` | Gets a plan by ID |
@@ -191,6 +212,8 @@ Errors use `success: false` and include an error code, message, and optional det
 
 - Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 - OpenAPI JSON: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+
+Swagger UI exposes an **Authorize** button for the JWT bearer scheme. First call `POST /api/auth/login` with the demo user's email and password, copy `data.accessToken` from the response, then click **Authorize** and paste the token value without typing the `Bearer ` prefix. Swagger adds `Authorization: Bearer <token>` to protected API calls. The login operation itself is marked public in the OpenAPI document.
 
 ## Unit tests
 

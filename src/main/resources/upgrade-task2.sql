@@ -3,6 +3,22 @@ ALTER TABLE plans
     ADD COLUMN active_dashboard_limit INT NOT NULL DEFAULT 0 CHECK (active_dashboard_limit >= 0),
     ADD COLUMN data_processing_limit_gb INT NOT NULL DEFAULT 0 CHECK (data_processing_limit_gb >= 0);
 
+CREATE TABLE users (
+    user_id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    email VARCHAR(254) NOT NULL UNIQUE,
+    `role` VARCHAR(30) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    last_login TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT users_status_check CHECK (status IN ('ACTIVE', 'INACTIVE', 'LOCKED'))
+) ENGINE=InnoDB;
+
+INSERT INTO users (name, password, email, `role`, status)
+VALUES ('Demo User', 'demo123', 'demo@example.com', 'ADMIN', 'ACTIVE');
+
 CREATE TABLE customer_usage (
     customer_id BIGINT PRIMARY KEY,
     active_users INT NOT NULL DEFAULT 0 CHECK (active_users >= 0),

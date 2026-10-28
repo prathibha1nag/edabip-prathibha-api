@@ -1,3 +1,6 @@
+INSERT IGNORE INTO users (name, password, email, `role`, status)
+VALUES ('Demo User', 'demo123', 'demo@example.com', 'ADMIN', 'ACTIVE');
+
 INSERT IGNORE INTO plans
     (name, price, user_limit, storage_limit_gb, reports_per_month, active_dashboard_limit, data_processing_limit_gb, support)
 VALUES

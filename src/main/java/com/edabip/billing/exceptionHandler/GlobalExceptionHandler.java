@@ -13,6 +13,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import com.edabip.billing.service.AuthService;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import jakarta.validation.ConstraintViolationException;
@@ -24,6 +26,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> notFound(NotFoundException ex) {
         return response(HttpStatus.NOT_FOUND, "NOT_FOUND", ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(AuthService.InvalidCredentialsException.class)
+    public ResponseEntity<ApiResponse<Void>> invalidCredentials(AuthService.InvalidCredentialsException ex) {
+        return response(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Invalid username or password", null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
