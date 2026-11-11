@@ -18,7 +18,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.edabip.billing.model.InvoiceSummary;
+import com.edabip.billing.model.MonthlyInvoiceTotal;
 import com.edabip.billing.service.BillingService;
+import java.util.List;
 
 @ExtendWith(MockitoExtension.class)
 class BillingControllerTest {
@@ -41,5 +43,20 @@ class BillingControllerTest {
                 .andExpect(jsonPath("$.data.totalInvoices").value(3));
 
         verify(service).invoiceSummary(8L);
+    }
+
+    @Test
+    void monthlyTotalsMatchChartContractShape() throws Exception {
+        when(service.monthlyInvoiceTotals(8L)).thenReturn(List.of(
+                new MonthlyInvoiceTotal("2026-10", new BigDecimal("9.99"))));
+
+        mvc.perform(get("/api/invoices/monthly-totals").param("customerId", "8"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].month").value("2026-10"))
+                .andExpect(jsonPath("$.data[0].total").value(9.99))
+                .andExpect(jsonPath("$.error").doesNotExist());
+
+        verify(service).monthlyInvoiceTotals(8L);
     }
 }

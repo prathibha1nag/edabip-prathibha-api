@@ -8,3 +8,7 @@ public record Subscription(Long id, Long customerId, Long planId, String planNam
                            BillingCycle billingCycle, LocalDate currentPeriodStart,
                            LocalDate currentPeriodEnd, BigDecimal amountDue,
                            Instant lastPaymentAt) {}
+
+
+
+                           

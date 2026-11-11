@@ -124,6 +124,19 @@ java -jar target/prathibha-api-0.1.0.jar
 | `PUT` | `/api/payment-methods/{id}/primary?customerId={customerId}` | Transactionally switches the primary payment method |
 | `DELETE` | `/api/payment-methods/{id}?customerId={customerId}` | Removes a non-primary payment method |
 
+## Integration — Squad 3 Billing
+
+- Backend owner: Naga Prathibha Appasamudram (Prathibha).
+- Frontend partner: Gobinath R (Billing). Frontend repository: link to be added by the partner; it was not provided in this repository.
+- Contract: [`docs/api-contract.md`](docs/api-contract.md).
+- Run this API using the database setup and environment variables above, then run Gobinath's React app on `http://localhost:5173`. The API is available at `http://localhost:8080`; sign in through `POST /api/auth/login`, then send the returned bearer token for Billing requests. Swagger UI: `http://localhost:8080/swagger-ui.html`.
+
+Integration log:
+
+1. Browser calls from Vite need CORS preflight support. Added an API CORS policy for `http://localhost:5173`, including `OPTIONS`, `Authorization`, and `Content-Type`.
+2. The API wraps payloads in `{success,data,error}`. The contract documents that envelope consistently, including the nested `items` pagination shape, so the frontend API layer can unwrap `data` before returning results to components.
+3. Payment method removal can fail when the method is primary. The API returns the rule text in `error.message`; the frontend should surface that message and call the set-primary endpoint before retrying removal.
+
 Payment method creation accepts `brand`, `lastFour`, `expiryMonth`, `expiryYear`, and optional `makePrimary`. The first saved method is made primary automatically. A primary method cannot be removed until another method is selected. The request model has no full card number or CVV fields, and the database stores neither.
 
 Plan and invoice pagination is zero-based with `size` from 1 to 100. Plan `sort` accepts `name`, `price`, `userLimit`, `storageLimitGb`, `reportsPerMonth`, or `active`, followed by `asc` or `desc` (for example `price,desc`). Invoice `sort` accepts `periodStart`, `periodEnd`, `amount`, `status`, or `paidOn`; invoice status accepts `Paid` or `Due`.

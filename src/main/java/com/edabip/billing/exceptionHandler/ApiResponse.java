@@ -11,3 +11,11 @@ public record ApiResponse<T>(boolean success, T data, ApiError error) {
 
     public record ApiError(String code, String message, Object details) {}
 }
+
+
+
+
+
+
+
+
